@@ -116,7 +116,7 @@ app.get("/:v/mvt/:z/:x/:y", async (c, next) => {
         return c.body(buff);
     }
 });
-app.get("/attributes.json", async (c) => {
+app.get("/metadata", async (c) => {
     return c.json(attributeData);
 });
 app.get("/count", async (c) => {

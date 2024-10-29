@@ -121,7 +121,7 @@ app.get("/:v/mvt/:z/:x/:y", async (c, next) => {
   }
 });
 
-app.get("/attributes.json", async (c) => {
+app.get("/metadata", async (c) => {
   return c.json(attributeData);
 });
 
