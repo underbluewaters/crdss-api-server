@@ -122,6 +122,7 @@ app.get("/:v/mvt/:z/:x/:y", async (c, next) => {
 });
 
 app.get("/metadata", async (c) => {
+  c.header("Cache-Control", "public, max-age=900");
   return c.json(attributeData);
 });
 
