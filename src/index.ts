@@ -9,6 +9,8 @@ import duckdb from "duckdb";
 import vtpbf from "vt-pbf";
 import geojsonVt from "geojson-vt";
 import { readFileSync } from "fs";
+import { z } from 'zod'
+import { zValidator } from '@hono/zod-validator'
 
 const emptyTileBuffer = createEmptyTileBuffer();
 
@@ -189,8 +191,7 @@ function buildWhereClauses(
     if (isNumberFilter(filter)) {
       if ("min" in filter && "max" in filter) {
         whereClauses.push(
-          `${column} >= $${valueStartIndex} AND ${column} <= $${
-            valueStartIndex + 1
+          `${column} >= $${valueStartIndex} AND ${column} <= $${valueStartIndex + 1
           }`
         );
         values.push(filter.min, filter.max);
@@ -304,6 +305,122 @@ function createEmptyTileBuffer() {
   const buffer = vtpbf.fromGeojsonVt({ cells: tile });
   return buffer;
 }
+
+const statsQuerySchema = z.object({
+  cells: z.array(z.string()).nonempty().max(5000),
+  properties: z.array(z.object({
+    type: z.enum(["number", "string", "boolean"]),
+    column: z.string(),
+  })).nonempty().max(5)
+});
+
+const numberPropertyResultSchema = z.object({
+  property: z.string(),
+  type: z.literal("number"),
+  min: z.number(),
+  max: z.number(),
+  avg: z.number(),
+});
+
+type NumberPropertyResult = z.infer<typeof numberPropertyResultSchema>;
+
+const stringPropertyResultSchema = z.object({
+  property: z.string(),
+  type: z.literal("string"),
+  counts: z.array(z.object({
+    value: z.string(),
+    count: z.number(),
+  }))
+});
+
+const booleanPropertyResultSchema = z.object({
+  property: z.string(),
+  type: z.literal("boolean"),
+  counts: z.array(z.object({
+    value: z.boolean(),
+    count: z.number(),
+  }))
+});
+
+const statsResultsSchema = z.union([
+  numberPropertyResultSchema,
+  stringPropertyResultSchema,
+  booleanPropertyResultSchema
+]);
+
+type StatsResults = z.infer<typeof statsResultsSchema>[];
+
+app.post("/stats", zValidator("json", statsQuerySchema), async (c) => {
+  const { cells, properties } = c.req.valid("json");
+  const uncompacted = h3.uncompactCells(cells, 11);
+  const results: StatsResults = [];
+  const cte = `
+  with filtered_cells as (
+    select
+      *
+    from
+      cells
+    where
+      id IN (
+        SELECT id FROM (VALUES 
+          ${uncompacted.map((id) => `('${id}')`).join(", ")}
+        ) AS v(id)
+      )
+    )`;
+  for (const property of properties) {
+    const attr = attributeData.attributes.find((a: {attribute: string}) => a.attribute === property.column);
+    if (!attr) {
+      c.text(`Attribute ${property.column} not found`, 400);
+    }
+    if (property.column)
+    if (property.type === "number") {
+      const query = `
+        ${cte}
+        select
+          min(${property.column}) as min,
+          max(${property.column}) as max,
+          avg(${property.column}) as avg
+        from
+          filtered_cells
+      `;
+      startTime(c, `query ${property.column}`);
+      const result = await get<{ min: number, max: number, avg: number }>(query);
+      endTime(c, `query ${property.column}`);
+      results.push({
+        type: "number",
+        property: property.column,
+        min: result.min,
+        max: result.max,
+        avg: result.avg,
+      });
+    } else if (property.type === "string") {
+      const query = `
+        ${cte}
+        select
+          ${property.column} as value,
+          count(${property.column}) as count
+        from
+          filtered_cells
+        group by ${property.column}
+      `;
+      console.time('query');
+      const result = await all<{ value: string, count: number }>(query);
+      console.timeEnd('query');
+      results.push({
+        type: "string",
+        property: property.column,
+        counts: result.map((row) => ({
+          count: row.count,
+          value: row.value,
+        }))
+      });
+    }
+  }
+  return c.json(results);
+  // return c.json({
+  //   foo: "bar"
+  // })
+});
 
 
 export default app;
