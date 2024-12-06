@@ -14,6 +14,8 @@ RUN echo "ATTRIBUTES_PATH=/app/attributes.json" > /app/.env && \
   
 COPY package*json tsconfig.json src ./
 
+RUN ln -s /usr/bin/python3 /usr/bin/python
+
 RUN npm ci && \
     npm run build && \
     npm prune --production
