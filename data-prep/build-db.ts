@@ -50,6 +50,9 @@ CREATE TABLE temp1 AS
     null_padding = true
   );
 
+-- Modify this statement as needed to drop columns or transform data, e.g. 
+-- converting varchar columns to boolean
+
 CREATE TABLE cells as
   select 
     h3_string_to_h3(id) as r11_id, 
@@ -63,10 +66,13 @@ CREATE TABLE cells as
     * 
   from temp1;
 
+-- If you modified the previous statement, you will need to create a new csv
+-- file for feeding into build-attributes-json.ts
+
 DROP TABLE temp1;
 
 Don't forget to run:
-npx ts-node add-geohashes.ts -d output/crdss.duckdb
+npx tsx ./data-prep/add-geohashes.ts -d output/crdss.duckdb
 `);
 
 process.exit();

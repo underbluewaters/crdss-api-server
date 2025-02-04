@@ -10,7 +10,8 @@
  * npx ts-node add-geohashes.ts -d output/crdss.duckdb
  */
 
-import * as DuckDB from "duckdb";
+// @ts-ignore
+import DuckDB from "duckdb";
 // @ts-ignore
 import * as tileCover from "@mapbox/tile-cover";
 // @ts-ignore
@@ -18,6 +19,7 @@ import yargs from "yargs";
 import * as cliProgress from "cli-progress";
 import { stops, Stop } from "./src/stops";
 
+console.log(DuckDB);
 const BATCH_SIZE = 100_000; // Define the batch size for processing
 
 // Define the CLI options

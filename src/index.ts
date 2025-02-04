@@ -133,7 +133,7 @@ app.get("/count", async (c) => {
   const where = buildWhereClauses(f || {}, 1);
   const query = `
     select
-      count(distinct(id))::int as count
+      count(distinct(r11_id))::int as count
     from
       cells
     where

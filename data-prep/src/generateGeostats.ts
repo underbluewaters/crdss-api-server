@@ -1,4 +1,4 @@
-import * as Papa from "papaparse";
+import Papa from "papaparse";
 import { createReadStream } from "node:fs";
 import * as cliProgress from "cli-progress";
 import {

@@ -5,12 +5,10 @@ FROM base AS builder
 # RUN apk add --no-cache gcompat
 WORKDIR /app
 
-# Copy the .env file to the container and load environment variables
-COPY .env /app/.env
-
 # Optional: Create a .env file in the container with these paths
 RUN echo "ATTRIBUTES_PATH=/app/attributes.json" > /app/.env && \
-    echo "DUCKDB_PATH=/app/crdss.duckdb" >> /app/.env
+    echo "DUCKDB_PATH=/app/crdss.duckdb" >> /app/.env && \
+    echo "PORT=3000" >> /app/.env
   
 COPY package*json tsconfig.json src ./
 
