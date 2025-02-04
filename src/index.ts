@@ -9,8 +9,9 @@ import duckdb from "duckdb";
 import vtpbf from "vt-pbf";
 import geojsonVt from "geojson-vt";
 import { readFileSync } from "fs";
-import { z } from 'zod'
-import { zValidator } from '@hono/zod-validator'
+import { z } from 'zod';
+import { zValidator } from '@hono/zod-validator';
+import { GeoJSONSchema, GeoJSONFeatureSchema } from "zod-geojson";
 
 const emptyTileBuffer = createEmptyTileBuffer();
 
@@ -307,7 +308,8 @@ function createEmptyTileBuffer() {
 }
 
 const statsQuerySchema = z.object({
-  cells: z.array(z.string()).nonempty().max(5000),
+  cells: z.array(z.string()).nonempty().max(5000).optional(),
+  feature: z.any().optional(),
   properties: z.array(z.object({
     type: z.enum(["number", "string", "boolean"]),
     column: z.string(),
@@ -351,8 +353,15 @@ const statsResultsSchema = z.union([
 type StatsResults = z.infer<typeof statsResultsSchema>[];
 
 app.post("/stats", zValidator("json", statsQuerySchema), async (c) => {
-  const { cells, properties } = c.req.valid("json");
-  const uncompacted = h3.uncompactCells(cells, 11);
+  const { cells, properties,feature } = c.req.valid("json");
+  let uncompacted: string[] = [];
+  if (cells) {
+    uncompacted = h3.uncompactCells(cells, 11);
+  } else if (feature) {
+    uncompacted = h3.polygonToCells((feature as any).geometry.coordinates, 11, true);
+  } else {
+    throw new Error("No .cells or .feature provided");
+  }
   const results: StatsResults = [];
   const cte = `
   with filtered_cells as (
