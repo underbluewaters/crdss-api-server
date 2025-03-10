@@ -50,22 +50,42 @@ app.get("/:v/mvt/:z/:x/:y", async (c, next) => {
     const query = `
     with tile_members as (
       select
-        distinct(id),
+        distinct(id)
       from
         geohashes
       where
         resolution = $1 and
         geohash like $2
+    ),
+    filtered_counts as (
+      select
+        r${resolution}_id as id,
+        count(r${resolution}_id)::int as count
+      from
+        cells
+      where
+        r${resolution}_id in (select id from tile_members) and
+        ${where.values.length > 0 ? where.where : "true"}
+      group by r${resolution}_id
+    ),
+    all_counts as (
+      select
+        r${resolution}_id as id,
+        count(r${resolution}_id)::int as all_count
+      from
+        cells
+      where
+        r${resolution}_id in (select id from tile_members)
+      group by r${resolution}_id
     )
     select
-      distinct(h3_h3_to_string(r${resolution}_id)) as id,
-      count(h3_h3_to_string(r${resolution}_id))::int as count
+      h3_h3_to_string(f.id) as id,
+      f.count as count,
+      a.all_count as all_count
     from
-      cells
-    where
-      r${resolution}_id in (select id from tile_members) and
-      ${where.values.length > 0 ? where.where : "true"}
-    group by r${resolution}_id
+      filtered_counts f
+    join
+      all_counts a on f.id = a.id
   `;
     const values = [resolution, `${tilebelt.tileToQuadkey([x, y, z])}%`];
     if (where.values.length > 0) {
@@ -84,7 +104,9 @@ app.get("/:v/mvt/:z/:x/:y", async (c, next) => {
         else {
             c.header("Content-Type", "application/x-protobuf");
             // set immutable cache headers
-            c.header("Cache-Control", "public, max-age=31536000, immutable");
+            if (process.env.NODE_ENV === "production") {
+                c.header("Cache-Control", "public, max-age=31536000, immutable");
+            }
             return c.body(emptyTileBuffer);
         }
     }
@@ -97,6 +119,8 @@ app.get("/:v/mvt/:z/:x/:y", async (c, next) => {
                 h3: row.id,
                 count: row.count,
                 resolution,
+                all_count: row.all_count,
+                fractionMatching: row.count / row.all_count,
             },
             geometry: {
                 type: "Polygon",
@@ -115,7 +139,9 @@ app.get("/:v/mvt/:z/:x/:y", async (c, next) => {
     else {
         c.header("Content-Type", "application/x-protobuf");
         // set immutable cache headers
-        c.header("Cache-Control", "public, max-age=31536000, immutable");
+        if (process.env.NODE_ENV === "production") {
+            c.header("Cache-Control", "public, max-age=31536000, immutable");
+        }
         return c.body(buff);
     }
 });
