@@ -17,7 +17,8 @@ if (!filePath) {
 }
 
 generateGeostats(filePath).then((attributes) => {
+  console.log('done building attributes. Writing to file...')
   // write json to output/attributes.json
-  writeFileSync("output/attributes.json", JSON.stringify(attributes, null, 2));
-  console.log("attributes.json written to output/attributes.json");
+  writeFileSync("data/attributes.json", JSON.stringify(attributes, null, 2));
+  console.log("attributes.json written to data/attributes.json");
 });

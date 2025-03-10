@@ -72,7 +72,7 @@ CREATE TABLE cells as
 DROP TABLE temp1;
 
 Don't forget to run:
-npx tsx ./data-prep/add-geohashes.ts -d output/crdss.duckdb
+npx tsx ./data-prep/add-geohashes.ts -d ./data/crdss.duckdb
 `);
 
 process.exit();

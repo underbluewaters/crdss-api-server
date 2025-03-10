@@ -19,7 +19,6 @@ import yargs from "yargs";
 import * as cliProgress from "cli-progress";
 import { stops, Stop } from "./src/stops";
 
-console.log(DuckDB);
 const BATCH_SIZE = 100_000; // Define the batch size for processing
 
 // Define the CLI options
@@ -36,6 +35,7 @@ const argv = yargs(process.argv.slice(2))
 const dbPath: string = argv.db;
 
 // Connect to DuckDB
+console.log('connecting', dbPath);
 const db = new DuckDB.Database(dbPath);
 const connection = db.connect();
 
@@ -152,6 +152,8 @@ async function prepare() {
 }
 
 (async () => {
+  console.log('starting...');
+  console.log(connection);
   await prepare();
   const steps = stops.reverse(); //.slice(0, stops.length - 1);
   for (const stop of steps) {
