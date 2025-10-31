@@ -59,3 +59,8 @@ declare namespace NodeJS {
     ATTRIBUTES_PATH: string;
   }
 }
+
+// Provided by tsx at runtime; add type to silence TS error
+interface ImportMeta {
+  main?: boolean;
+}

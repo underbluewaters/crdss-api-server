@@ -12,6 +12,7 @@ import { readFileSync } from "fs";
 import { z } from 'zod';
 import { zValidator } from '@hono/zod-validator';
 import { GeoJSONSchema, GeoJSONFeatureSchema } from "zod-geojson";
+import { buildAttributes } from "./attributesBuilder.js";
 const emptyTileBuffer = createEmptyTileBuffer();
 const db = new duckdb.Database(process.env.DUCKDB_PATH);
 const connection = db.connect();
@@ -146,8 +147,13 @@ app.get("/:v/mvt/:z/:x/:y", async (c, next) => {
     }
 });
 app.get("/metadata", async (c) => {
+    // c.header("Cache-Control", "public, max-age=900");
+    return c.json(await buildAttributes(get, all));
+    // return c.json(attributeData);
+});
+app.get("/attributes", async (c) => {
     c.header("Cache-Control", "public, max-age=900");
-    return c.json(attributeData);
+    return c.json(await buildAttributes(get, all));
 });
 app.get("/count", async (c) => {
     const f = parseFilters(c.req.query("filter"));

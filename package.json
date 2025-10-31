@@ -8,7 +8,7 @@
     "build": "tsc",
     "dev": "tsx --watch --env-file=.env src/server.ts",
     "start": "node --env-file=.env dist/server.js",
-    "build:container": "docker build -t crdss-api-server .",
+    "build:container": "npx tsx --env-file=.env -e '(async () => { const { createAttributes } = await import(`./src/attributesBuilder.ts`); console.log(JSON.stringify(await createAttributes(), null, 2)) })()' > ./data/attributes.json && docker build -t crdss-api-server .",
     "deploy": "npm run build && npm run build:container && docker tag crdss-api-server 703671909637.dkr.ecr.us-east-1.amazonaws.com/crdss/api-server && docker push 703671909637.dkr.ecr.us-east-1.amazonaws.com/crdss/api-server && echo 'Sign into AWS console, create a new task definition, and update the service.'"
   },
   "type": "module",
