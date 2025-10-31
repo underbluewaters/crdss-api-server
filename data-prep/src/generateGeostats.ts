@@ -53,6 +53,14 @@ export default async function generateGeostats(
     Papa.parse<{ id: string } & any>(stream, {
       header: true,
       dynamicTyping: true,
+      transform: (value, index) => {
+        if (value.toLowerCase() === "true") {
+          return true;
+        } else if (value.toLowerCase() === "false") {
+          return false;
+        }
+        return value.length > 0 ? value : undefined;
+      },
       step: (row: any, parser) => {
         if (!silent) {
           progressBar.update(i);

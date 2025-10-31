@@ -47,11 +47,15 @@ CREATE or REPLACE MACRO h3_id_to_simple_polygon(id) as (
 CREATE TABLE temp1 AS 
   SELECT * FROM read_csv('${cellsPath}', 
     header = true, 
-    null_padding = true
+    null_padding = true,
+    sample_size = -1,
+    auto_type_candidates = ['DOUBLE', 'BIGINT', 'BOOLEAN', 'VARCHAR']
   );
 
 -- Modify this statement as needed to drop columns or transform data, e.g. 
 -- converting varchar columns to boolean
+
+alter table temp1 rename column GRID_ID to id;
 
 CREATE TABLE cells as
   select 
