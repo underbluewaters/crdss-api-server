@@ -147,11 +147,10 @@ app.get("/:v/mvt/:z/:x/:y", async (c, next) => {
     }
 });
 app.get("/metadata", async (c) => {
-    // c.header("Cache-Control", "public, max-age=900");
-    return c.json(await buildAttributes(get, all));
-    // return c.json(attributeData);
+    c.header("Cache-Control", "public, max-age=900");
+    return c.json(attributeData);
 });
-app.get("/attributes", async (c) => {
+app.get("/metadata-dynamic", async (c) => {
     c.header("Cache-Control", "public, max-age=900");
     return c.json(await buildAttributes(get, all));
 });
@@ -324,6 +323,8 @@ const numberPropertyResultSchema = z.object({
     min: z.number(),
     max: z.number(),
     avg: z.number(),
+    histogram: z.any().optional(),
+    count: z.number(),
 });
 const stringPropertyResultSchema = z.object({
     property: z.string(),
@@ -384,10 +385,24 @@ app.post("/stats", zValidator("json", statsQuerySchema), async (c) => {
         select
           min(${property.column}) as min,
           max(${property.column}) as max,
-          avg(${property.column}) as avg
+          avg(${property.column}) as avg,
+          count(*)::integer as count
         from
           filtered_cells
+        where
+          ${property.column} is not null
       `;
+                const histogramRows = await all(`
+        ${cte}
+        SELECT
+          bin::INTEGER AS bin,
+          bin_start::DOUBLE AS bin_start,
+          bin_end::DOUBLE AS bin_end,
+          count::INTEGER AS count
+        FROM hist_eq_ew_filtered(${property.column}, 49)
+      `, []);
+                const histogram = histogramRows.map((row) => [row.bin_start, row.count]);
+                histogram.push([histogramRows[histogramRows.length - 1].bin_end, null]);
                 startTime(c, `query ${property.column}`);
                 const result = await get(query);
                 endTime(c, `query ${property.column}`);
@@ -397,6 +412,8 @@ app.post("/stats", zValidator("json", statsQuerySchema), async (c) => {
                     min: result.min,
                     max: result.max,
                     avg: result.avg,
+                    count: result.count,
+                    histogram,
                 });
             }
             else if (property.type === "string") {
