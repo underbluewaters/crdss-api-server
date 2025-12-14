@@ -1,3 +1,4 @@
+import duckdb from "duckdb";
 export async function buildAttributes(get, all) {
     const versionResult = await get(`
     SELECT max(version) as version FROM versions
@@ -65,7 +66,6 @@ async function getBooleanDetails(columnName, all) {
         acc[result.value] = result.count;
         return acc;
     }, {});
-    console.log('results', values);
     let count = 0;
     for (const record of results) {
         count += record.count;
@@ -144,4 +144,57 @@ async function getNumericDetails(columnName, all) {
         attribute: columnName,
         type: 'number',
     };
+}
+export async function createAttributes() {
+    const db = new duckdb.Database(process.env.DUCKDB_PATH);
+    const connection = db.connect();
+    connection.all("install h3 from community; load h3", (err, data) => {
+        if (err) {
+            console.error(err);
+        }
+        else {
+            return connection.all("install spatial; load spatial", (err, data) => {
+                if (err) {
+                    console.error(err);
+                }
+                else {
+                }
+            });
+        }
+    });
+    function get(query, values = []) {
+        return new Promise((resolve, reject) => {
+            connection.all(query, ...values, (err, data) => {
+                if (err) {
+                    reject(err);
+                }
+                else if (data && data.length > 0) {
+                    resolve(data[0]);
+                }
+                else {
+                    reject(new Error("No data returned from query"));
+                }
+            });
+        });
+    }
+    function all(query, values = []) {
+        return new Promise((resolve, reject) => {
+            connection.all(query, ...values, (err, data) => {
+                if (err) {
+                    reject(err);
+                }
+                else if (data) {
+                    resolve(data);
+                }
+                else {
+                    reject(new Error("No data returned from query"));
+                }
+            });
+        });
+    }
+    // Wait for plugins and extensions to load
+    await new Promise((resolve, reject) => {
+        setTimeout(resolve, 3000);
+    });
+    return await buildAttributes(get, all);
 }
