@@ -45,3 +45,43 @@ SELECT
 
 select AquaticPres, count(AquaticPres) from cells group by AquaticPres;
 
+-- ---------------------------------------------------------------------------
+-- Backfill BCG scores from bcgTemp into cells (cells.id = bcgTemp.GRID_ID)
+-- Run these in order from the DuckDB CLI. Source columns are VARCHAR; target
+-- columns are DOUBLE — validate before updating.
+-- ---------------------------------------------------------------------------
+
+-- 1) Duplicate GRID_ID in bcgTemp would make the UPDATE non-deterministic.
+--    Expect zero rows:
+SELECT GRID_ID, COUNT(*) AS n
+FROM bcgTemp
+GROUP BY GRID_ID
+HAVING COUNT(*) > 1;
+
+-- 2) Rows in bcgTemp that cannot cast to DOUBLE (fix source data if any rows):
+SELECT GRID_ID, Max_BCG_Score, Min_BCG_Score
+FROM bcgTemp
+WHERE (Max_BCG_Score IS NOT NULL AND TRY_CAST(Max_BCG_Score AS DOUBLE) IS NULL)
+   OR (Min_BCG_Score IS NOT NULL AND TRY_CAST(Min_BCG_Score AS DOUBLE) IS NULL);
+
+-- 3) Optional: how many cells rows will get a match (sanity check):
+SELECT
+  COUNT(*) FILTER (WHERE b.GRID_ID IS NOT NULL) AS cells_with_bcg_match,
+  COUNT(*) AS cells_total
+FROM cells c
+LEFT JOIN bcgTemp b ON c.id = b.GRID_ID;
+
+-- 4) Apply update (atomic). Uncomment after steps 1–3 look good:
+BEGIN TRANSACTION;
+UPDATE cells
+SET
+  BCG_Score_Max = CAST(b.Max_BCG_Score AS DOUBLE),
+  BCG_Score_Min = CAST(b.Min_BCG_Score AS DOUBLE)
+FROM bcgTemp AS b
+WHERE cells.id = b.GRID_ID;
+COMMIT;
+
+-- If you prefer NULL on bad strings instead of failing the whole statement,
+-- replace CAST with TRY_CAST in the SET clause and re-run step 2 afterward
+-- to find rows that ended up NULL unexpectedly.
+
